@@ -7,6 +7,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [armeabi-v7a, arm64-v8a]
     steps:
       - uses: actions/checkout@v4
 
@@ -18,6 +22,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Set architecture
+        run: |
+          sed -i "s/^android.archs.*/android.archs = ${{ matrix.arch }}/" buildozer.spec
+          grep archs buildozer.spec
 
       - name: Install dependencies
         run: |
@@ -35,7 +44,7 @@ jobs:
         run: |
           sed 's/\x1b\[[0-9;]*m//g' build.log | cut -c1-300 > clean.log
           echo "=== ERROR LINES ==="
-          grep -n -i -E "error compiling|error:|\[ERROR\]|no module|not found|exception" clean.log | grep -v -i "warning" | tail -n 30
+          grep -n -i -E "error|exception|failed" clean.log | grep -v -i -E "warning|performance hint|noexcept|DEBUG" | tail -n 30
           echo "=== LINES BEFORE FAILURE ==="
           n=$(grep -n "Command failed" clean.log | head -1 | cut -d: -f1)
           if [ -z "$n" ]; then
@@ -48,5 +57,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: package
+          name: package-${{ matrix.arch }}
           path: bin/*.apk
