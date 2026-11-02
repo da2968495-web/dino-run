@@ -10,15 +10,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          command: buildozer android debug
-          buildozer_version: master
+      - name: Prepare folders
+        run: |
+          mkdir -p "$HOME/.buildozer"
+          chmod -R a+rwX "$HOME/.buildozer" "$GITHUB_WORKSPACE"
+
+      - name: Build APK
+        shell: bash
+        run: |
+          docker run --rm \
+            --volume "$HOME/.buildozer":/home/user/.buildozer \
+            --volume "$GITHUB_WORKSPACE":/home/user/hostcwd \
+            ghcr.io/kivy/buildozer:latest android debug 2>&1 | tee "$HOME/build.log"
+
+      - name: Show last lines of log
+        if: failure()
+        run: tail -n 40 "$HOME/build.log"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: package
-          path: ${{ steps.buildozer.outputs.filename }}
+          path: bin/*.apk
